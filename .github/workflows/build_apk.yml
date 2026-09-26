@@ -18,10 +18,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Gradle and Generate Wrapper
+      - name: Install Gradle and Generate Wrapper for Java 17
         run: |
           sudo apt-get update && sudo apt-get install -y gradle
-          gradle wrapper
+          gradle wrapper --gradle-version 8.5
 
       - name: Build Release APK
         run: ./gradlew assembleRelease
