@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.ads.MobileAds
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
+fun HomeScreen(supabase: SupabaseClient) {
     var selectedDistrict by remember { mutableStateOf<String?>(null) }
     var selectedTehsil by remember { mutableStateOf<String?>(null) }
     var selectedSubArea by remember { mutableStateOf<String?>(null) }
@@ -84,7 +85,7 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
 
     var activeSheetTitle by remember { mutableStateOf<String?>(null) }
     var activeSheetItems by remember { mutableStateOf<List<String>>(emptyList()) }
-    var onItemSelected: ((String) -> Unit)? by remember { mutableStateOf(null) }
+    var activeSheetType by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
 
@@ -96,7 +97,6 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                 withContext(Dispatchers.Main) {
                     tehsils = list
                     selectedTehsil = list.firstOrNull()
-                    selectedTehsil?.let { fetchSubAreas(district, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -112,7 +112,6 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                 withContext(Dispatchers.Main) {
                     subAreas = list
                     selectedSubArea = list.firstOrNull()
-                    selectedSubArea?.let { fetchWards(district, tehsil, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -128,7 +127,6 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                 withContext(Dispatchers.Main) {
                     wards = list
                     selectedWard = list.firstOrNull()
-                    selectedWard?.let { fetchLocations(district, tehsil, subArea, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -144,7 +142,6 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                 withContext(Dispatchers.Main) {
                     locations = list
                     selectedLocation = list.firstOrNull()
-                    selectedLocation?.let { fetchRates(district, tehsil, subArea, ward, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -187,7 +184,9 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                     districts = list
                     val d = if (list.contains("मंदसौर")) "मंदसौर" else list.firstOrNull()
                     selectedDistrict = d
-                    if (d != null) fetchTehsils(d)
+                    if (d != null) {
+                        fetchTehsils(d)
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -222,75 +221,31 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                             SelectionTile("1", "ज़िला", selectedDistrict) {
                                 activeSheetTitle = "ज़िला चुनें"
                                 activeSheetItems = districts
-                                onItemSelected = { v ->
-                                    selectedDistrict = v
-                                    selectedTehsil = null
-                                    selectedSubArea = null
-                                    selectedWard = null
-                                    selectedLocation = null
-                                    guidelineData = null
-                                    fetchTehsils(v)
-                                }
+                                activeSheetType = "district"
                             }
 
                             SelectionTile("2", "तहसील", selectedTehsil, isEnabled = selectedDistrict != null && tehsils.isNotEmpty()) {
                                 activeSheetTitle = "तहसील चुनें"
                                 activeSheetItems = tehsils
-                                onItemSelected = { v ->
-                                    selectedTehsil = v
-                                    selectedSubArea = null
-                                    selectedWard = null
-                                    selectedLocation = null
-                                    guidelineData = null
-                                    selectedDistrict?.let { fetchSubAreas(it, v) }
-                                }
+                                activeSheetType = "tehsil"
                             }
 
                             SelectionTile("3", "निकाय / उप-क्षेत्र", selectedSubArea, isEnabled = selectedTehsil != null && subAreas.isNotEmpty()) {
                                 activeSheetTitle = "निकाय / उप-क्षेत्र चुनें"
                                 activeSheetItems = subAreas
-                                onItemSelected = { v ->
-                                    selectedSubArea = v
-                                    selectedWard = null
-                                    selectedLocation = null
-                                    guidelineData = null
-                                    val dist = selectedDistrict
-                                    val teh = selectedTehsil
-                                    if (dist != null && teh != null) {
-                                        fetchWards(dist, teh, v)
-                                    }
-                                }
+                                activeSheetType = "sub_area"
                             }
 
                             SelectionTile("4", "वार्ड / हल्का", selectedWard, isEnabled = selectedSubArea != null && wards.isNotEmpty()) {
                                 activeSheetTitle = "वार्ड / हल्का चुनें"
                                 activeSheetItems = wards
-                                onItemSelected = { v ->
-                                    selectedWard = v
-                                    selectedLocation = null
-                                    guidelineData = null
-                                    val dist = selectedDistrict
-                                    val teh = selectedTehsil
-                                    val sub = selectedSubArea
-                                    if (dist != null && teh != null && sub != null) {
-                                        fetchLocations(dist, teh, sub, v)
-                                    }
-                                }
+                                activeSheetType = "ward"
                             }
 
                             SelectionTile("5", "कॉलोनी / गाँव", selectedLocation, isEnabled = selectedWard != null && locations.isNotEmpty()) {
                                 activeSheetTitle = "कॉलोनी / गाँव चुनें"
                                 activeSheetItems = locations
-                                onItemSelected = { v ->
-                                    selectedLocation = v
-                                    val dist = selectedDistrict
-                                    val teh = selectedTehsil
-                                    val sub = selectedSubArea
-                                    val ward = selectedWard
-                                    if (dist != null && teh != null && sub != null && ward != null) {
-                                        fetchRates(dist, teh, sub, ward, v)
-                                    }
-                                }
+                                activeSheetType = "location"
                             }
                         }
                     }
@@ -313,12 +268,56 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
 
             if (activeSheetTitle != null) {
                 SelectionBottomSheet(
-                    title = activeSheetTitle!!,
+                    title = activeSheetTitle!,
                     items = activeSheetItems,
                     onDismiss = { activeSheetTitle = null },
-                    onSelect = { item ->
+                    onSelect = { v ->
                         activeSheetTitle = null
-                        onItemSelected?.invoke(item)
+                        when (activeSheetType) {
+                            "district" -> {
+                                selectedDistrict = v
+                                selectedTehsil = null
+                                selectedSubArea = null
+                                selectedWard = null
+                                selectedLocation = null
+                                guidelineData = null
+                                fetchTehsils(v)
+                            }
+                            "tehsil" -> {
+                                selectedTehsil = v
+                                selectedSubArea = null
+                                selectedWard = null
+                                selectedLocation = null
+                                guidelineData = null
+                                selectedDistrict?.let { fetchSubAreas(it, v) }
+                            }
+                            "sub_area" -> {
+                                selectedSubArea = v
+                                selectedWard = null
+                                selectedLocation = null
+                                guidelineData = null
+                                val dist = selectedDistrict
+                                val teh = selectedTehsil
+                                if (dist != null && teh != null) fetchWards(dist, teh, v)
+                            }
+                            "ward" -> {
+                                selectedWard = v
+                                selectedLocation = null
+                                guidelineData = null
+                                val dist = selectedDistrict
+                                val teh = selectedTehsil
+                                val sub = selectedSubArea
+                                if (dist != null && teh != null && sub != null) fetchLocations(dist, teh, sub, v)
+                            }
+                            "location" -> {
+                                selectedLocation = v
+                                val dist = selectedDistrict
+                                val teh = selectedTehsil
+                                val sub = selectedSubArea
+                                val ward = selectedWard
+                                if (dist != null && teh != null && sub != null && ward != null) fetchRates(dist, teh, sub, ward, v)
+                            }
+                        }
                     }
                 )
             }
