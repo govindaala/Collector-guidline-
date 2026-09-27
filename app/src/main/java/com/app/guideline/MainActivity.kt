@@ -34,12 +34,15 @@ import com.google.android.gms.ads.MobileAds
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class MainActivity : ComponentActivity() {
 
@@ -97,7 +100,7 @@ fun HomeScreen(supabase: SupabaseClient) {
         isLoading = true
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines")
+                val res = supabase.postgrest.from("guidelines")
                     .select {
                         filter {
                             eq("district", district)
@@ -122,15 +125,16 @@ fun HomeScreen(supabase: SupabaseClient) {
     val fetchLocations: (String, String, String, String) -> Unit = { district, tehsil, subArea, ward ->
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select {
-                    filter {
-                        eq("district", district)
-                        eq("tehsil", tehsil)
-                        eq("sub_area", subArea)
-                        eq("ward_halka", ward)
+                val res = supabase.postgrest.rpc(
+                    "get_locations",
+                    buildJsonObject {
+                        put("p_district", district)
+                        put("p_tehsil", tehsil)
+                        put("p_sub_area", subArea)
+                        put("p_ward", ward)
                     }
-                }.decodeList<JsonObject>()
-                val list = res.mapNotNull { it["location_name"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
+                ).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["location_name"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
                     locations = list
                     selectedLocation = list.firstOrNull()
@@ -145,14 +149,15 @@ fun HomeScreen(supabase: SupabaseClient) {
     val fetchWards: (String, String, String) -> Unit = { district, tehsil, subArea ->
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select {
-                    filter {
-                        eq("district", district)
-                        eq("tehsil", tehsil)
-                        eq("sub_area", subArea)
+                val res = supabase.postgrest.rpc(
+                    "get_wards",
+                    buildJsonObject {
+                        put("p_district", district)
+                        put("p_tehsil", tehsil)
+                        put("p_sub_area", subArea)
                     }
-                }.decodeList<JsonObject>()
-                val list = res.mapNotNull { it["ward_halka"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
+                ).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["ward_halka"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
                     wards = list
                     selectedWard = list.firstOrNull()
@@ -167,13 +172,14 @@ fun HomeScreen(supabase: SupabaseClient) {
     val fetchSubAreas: (String, String) -> Unit = { district, tehsil ->
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select {
-                    filter {
-                        eq("district", district)
-                        eq("tehsil", tehsil)
+                val res = supabase.postgrest.rpc(
+                    "get_sub_areas",
+                    buildJsonObject {
+                        put("p_district", district)
+                        put("p_tehsil", tehsil)
                     }
-                }.decodeList<JsonObject>()
-                val list = res.mapNotNull { it["sub_area"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
+                ).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["sub_area"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
                     subAreas = list
                     selectedSubArea = list.firstOrNull()
@@ -188,10 +194,13 @@ fun HomeScreen(supabase: SupabaseClient) {
     val fetchTehsils: (String) -> Unit = { district ->
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select {
-                    filter { eq("district", district) }
-                }.decodeList<JsonObject>()
-                val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
+                val res = supabase.postgrest.rpc(
+                    "get_tehsils",
+                    buildJsonObject {
+                        put("p_district", district)
+                    }
+                ).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
                     tehsils = list
                     selectedTehsil = list.firstOrNull()
@@ -206,8 +215,8 @@ fun HomeScreen(supabase: SupabaseClient) {
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select().decodeList<JsonObject>()
-                val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
+                val res = supabase.postgrest.rpc("get_districts").decodeList<JsonObject>()
+                val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
                     districts = list
                     val d = if (list.contains("मंदसौर")) "मंदसौर" else list.firstOrNull()
