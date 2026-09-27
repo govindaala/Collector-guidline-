@@ -47,7 +47,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
         try {
             MobileAds.initialize(this) {}
         } catch (e: Exception) {
@@ -82,52 +81,22 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
 
     var guidelineData by remember { mutableStateOf<JsonObject?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    
-    // Bottom Sheet states
+
     var activeSheetTitle by remember { mutableStateOf<String?>(null) }
     var activeSheetItems by remember { mutableStateOf<List<String>>(emptyList()) }
     var onItemSelected: ((String) -> Unit)? by remember { mutableStateOf(null) }
 
     val scope = rememberCoroutineScope()
 
-    // Load Districts instantly in background
-    LaunchedEffect(Unit) {
+    fun fetchTehsils(district: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val result = supabase.postgrest.rpc("get_districts").decodeList<JsonObject>()
-                val list = result.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }
-                    .filter { it.isNotEmpty() }
-                
+                val res = supabase.postgrest.rpc("get_tehsils", mapOf("p_district" to district)).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
-                    districts = list
-                    if (districts.isNotEmpty()) {
-                        selectedDistrict = if (districts.contains("मंदसौर")) "मंदसौर" else districts.first()
-                        loadTehsils(selectedDistrict!, supabase) { tList, defaultTehsil ->
-                            tehsils = tList
-                            selectedTehsil = defaultTehsil
-                            if (defaultTehsil != null) {
-                                loadSubAreas(selectedDistrict!, defaultTehsil, supabase) { sList, defaultSub ->
-                                    subAreas = sList
-                                    selectedSubArea = defaultSub
-                                    if (defaultSub != null) {
-                                        loadWards(selectedDistrict!, defaultTehsil, defaultSub, supabase) { wList, defWard ->
-                                            wards = wList
-                                            selectedWard = defWard
-                                            if (defWard != null) {
-                                                loadLocations(selectedDistrict!, defaultTehsil, defaultSub, defWard, supabase) { lList, defLoc ->
-                                                    locations = lList
-                                                    selectedLocation = defLoc
-                                                    if (defLoc != null) {
-                                                        loadRateDetails(selectedDistrict!, defaultTehsil, defaultSub, defWard, defLoc, supabase)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    tehsils = list
+                    selectedTehsil = list.firstOrNull()
+                    selectedTehsil?.let { fetchSubAreas(district, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -135,71 +104,59 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
         }
     }
 
-    fun loadTehsils(district: String, client: io.github.jan.supabase.SupabaseClient, onResult: (List<String>, String?) -> Unit) {
+    fun fetchSubAreas(district: String, tehsil: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val result = client.postgrest.rpc("get_tehsils", mapOf("p_district" to district)).decodeList<JsonObject>()
-                val list = result.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.postgrest.rpc("get_sub_areas", mapOf("p_district" to district, "p_tehsil" to tehsil)).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["sub_area"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
-                    onResult(list, if (list.isNotEmpty()) list.first() else null)
+                    subAreas = list
+                    selectedSubArea = list.firstOrNull()
+                    selectedSubArea?.let { fetchWards(district, tehsil, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                withContext(Dispatchers.Main) { onResult(emptyList(), null) }
             }
         }
     }
 
-    fun loadSubAreas(district: String, tehsil: String, client: io.github.jan.supabase.SupabaseClient, onResult: (List<String>, String?) -> Unit) {
+    fun fetchWards(district: String, tehsil: String, subArea: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val result = client.postgrest.rpc("get_sub_areas", mapOf("p_district" to district, "p_tehsil" to tehsil)).decodeList<JsonObject>()
-                val list = result.mapNotNull { it["sub_area"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.postgrest.rpc("get_wards", mapOf("p_district" to district, "p_tehsil" to tehsil, "p_sub_area" to subArea)).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["ward_halka"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
-                    onResult(list, if (list.isNotEmpty()) list.first() else null)
+                    wards = list
+                    selectedWard = list.firstOrNull()
+                    selectedWard?.let { fetchLocations(district, tehsil, subArea, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                withContext(Dispatchers.Main) { onResult(emptyList(), null) }
             }
         }
     }
 
-    fun loadWards(district: String, tehsil: String, subArea: String, client: io.github.jan.supabase.SupabaseClient, onResult: (List<String>, String?) -> Unit) {
+    fun fetchLocations(district: String, tehsil: String, subArea: String, ward: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val result = client.postgrest.rpc("get_wards", mapOf("p_district" to district, "p_tehsil" to tehsil, "p_sub_area" to subArea)).decodeList<JsonObject>()
-                val list = result.mapNotNull { it["ward_halka"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.postgrest.rpc("get_locations", mapOf("p_district" to district, "p_tehsil" to tehsil, "p_sub_area" to subArea, "p_ward" to ward)).decodeList<JsonObject>()
+                val list = res.mapNotNull { it["location_name"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
                 withContext(Dispatchers.Main) {
-                    onResult(list, if (list.isNotEmpty()) list.first() else null)
+                    locations = list
+                    selectedLocation = list.firstOrNull()
+                    selectedLocation?.let { fetchRates(district, tehsil, subArea, ward, it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                withContext(Dispatchers.Main) { onResult(emptyList(), null) }
             }
         }
     }
 
-    fun loadLocations(district: String, tehsil: String, subArea: String, ward: String, client: io.github.jan.supabase.SupabaseClient, onResult: (List<String>, String?) -> Unit) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val result = client.postgrest.rpc("get_locations", mapOf("p_district" to district, "p_tehsil" to tehsil, "p_sub_area" to subArea, "p_ward" to ward)).decodeList<JsonObject>()
-                val list = result.mapNotNull { it["location_name"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
-                withContext(Dispatchers.Main) {
-                    onResult(list, if (list.isNotEmpty()) list.first() else null)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) { onResult(emptyList(), null) }
-            }
-        }
-    }
-
-    fun loadRateDetails(district: String, tehsil: String, subArea: String, ward: String, loc: String, client: io.github.jan.supabase.SupabaseClient) {
+    fun fetchRates(district: String, tehsil: String, subArea: String, ward: String, loc: String) {
         isLoading = true
         scope.launch(Dispatchers.IO) {
             try {
-                val result = client.postgrest.from("guidelines")
+                val res = supabase.postgrest.from("guidelines")
                     .select {
                         filter {
                             eq("district", district)
@@ -210,9 +167,8 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                         }
                         limit(1)
                     }.decodeSingleOrNull<JsonObject>()
-
                 withContext(Dispatchers.Main) {
-                    guidelineData = result
+                    guidelineData = res
                     isLoading = false
                 }
             } catch (e: Exception) {
@@ -222,17 +178,27 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
         }
     }
 
+    LaunchedEffect(Unit) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val res = supabase.postgrest.rpc("get_districts").decodeList<JsonObject>()
+                val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                withContext(Dispatchers.Main) {
+                    districts = list
+                    val d = if (list.contains("मंदसौर")) "मंदसौर" else list.firstOrNull()
+                    selectedDistrict = d
+                    if (d != null) fetchTehsils(d)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Text(
-                        "कलेक्टर गाइडलाइन 2026-27", 
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    ) 
-                },
+                title = { Text("कलेक्टर गाइडलाइन 2026-27", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E3A8A))
             )
         }
@@ -253,7 +219,6 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                             Text("📍 स्थान चुनें", style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A)))
                             Spacer(modifier = Modifier.height(12.dp))
                             
-                            // 1. District Tile
                             SelectionTile("1", "ज़िला", selectedDistrict) {
                                 activeSheetTitle = "ज़िला चुनें"
                                 activeSheetItems = districts
@@ -264,34 +229,11 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                                     selectedWard = null
                                     selectedLocation = null
                                     guidelineData = null
-                                    loadTehsils(v, supabase) { tList, defTehsil ->
-                                        tehsils = tList
-                                        selectedTehsil = defTehsil
-                                        if (defTehsil != null) {
-                                            loadSubAreas(v, defTehsil, supabase) { sList, defSub ->
-                                                subAreas = sList
-                                                selectedSubArea = defSub
-                                                if (defSub != null) {
-                                                    loadWards(v, defTehsil, defSub, supabase) { wList, defWard ->
-                                                        wards = wList
-                                                        selectedWard = defWard
-                                                        if (defWard != null) {
-                                                            loadLocations(v, defTehsil, defSub, defWard, supabase) { lList, defLoc ->
-                                                                locations = lList
-                                                                selectedLocation = defLoc
-                                                                if (defLoc != null) loadRateDetails(v, defTehsil, defSub, defWard, defLoc, supabase)
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    fetchTehsils(v)
                                 }
                             }
 
-                            // 2. Tehsil Tile
-                            SelectionTile("2", "तहसील", selectedTehsil, isEnabled = selectedDistrict != null && tehsils.isNotEmpty) {
+                            SelectionTile("2", "तहसील", selectedTehsil, isEnabled = selectedDistrict != null && tehsils.isNotEmpty()) {
                                 activeSheetTitle = "तहसील चुनें"
                                 activeSheetItems = tehsils
                                 onItemSelected = { v ->
@@ -300,30 +242,11 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                                     selectedWard = null
                                     selectedLocation = null
                                     guidelineData = null
-                                    if (selectedDistrict != null) {
-                                        loadSubAreas(selectedDistrict!, v, supabase) { sList, defSub ->
-                                            subAreas = sList
-                                            selectedSubArea = defSub
-                                            if (defSub != null) {
-                                                loadWards(selectedDistrict!, v, defSub, supabase) { wList, defWard ->
-                                                    wards = wList
-                                                    selectedWard = defWard
-                                                    if (defWard != null) {
-                                                        loadLocations(selectedDistrict!, v, defSub, defWard, supabase) { lList, defLoc ->
-                                                            locations = lList
-                                                            selectedLocation = defLoc
-                                                            if (defLoc != null) loadRateDetails(selectedDistrict!, v, defSub, defWard, defLoc, supabase)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    selectedDistrict?.let { fetchSubAreas(it, v) }
                                 }
                             }
 
-                            // 3. SubArea Tile
-                            SelectionTile("3", "निकाय / उप-क्षेत्र", selectedSubArea, isEnabled = selectedTehsil != null && subAreas.isNotEmpty) {
+                            SelectionTile("3", "निकाय / उप-क्षेत्र", selectedSubArea, isEnabled = selectedTehsil != null && subAreas.isNotEmpty()) {
                                 activeSheetTitle = "निकाय / उप-क्षेत्र चुनें"
                                 activeSheetItems = subAreas
                                 onItemSelected = { v ->
@@ -331,48 +254,41 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                                     selectedWard = null
                                     selectedLocation = null
                                     guidelineData = null
-                                    if (selectedDistrict != null && selectedTehsil != null) {
-                                        loadWards(selectedDistrict!, selectedTehsil!, v, supabase) { wList, defWard ->
-                                            wards = wList
-                                            selectedWard = defWard
-                                            if (defWard != null) {
-                                                loadLocations(selectedDistrict!, selectedTehsil!, v, defWard, supabase) { lList, defLoc ->
-                                                    locations = lList
-                                                    selectedLocation = defLoc
-                                                    if (defLoc != null) loadRateDetails(selectedDistrict!, selectedTehsil!, v, defWard, defLoc, supabase)
-                                                }
-                                            }
-                                        }
+                                    val dist = selectedDistrict
+                                    val teh = selectedTehsil
+                                    if (dist != null && teh != null) {
+                                        fetchWards(dist, teh, v)
                                     }
                                 }
                             }
 
-                            // 4. Ward Tile
-                            SelectionTile("4", "वार्ड / हल्का", selectedWard, isEnabled = selectedSubArea != null && wards.isNotEmpty) {
+                            SelectionTile("4", "वार्ड / हल्का", selectedWard, isEnabled = selectedSubArea != null && wards.isNotEmpty()) {
                                 activeSheetTitle = "वार्ड / हल्का चुनें"
                                 activeSheetItems = wards
                                 onItemSelected = { v ->
                                     selectedWard = v
                                     selectedLocation = null
                                     guidelineData = null
-                                    if (selectedDistrict != null && selectedTehsil != null && selectedSubArea != null) {
-                                        loadLocations(selectedDistrict!, selectedTehsil!, selectedSubArea!, v, supabase) { lList, defLoc ->
-                                            locations = lList
-                                            selectedLocation = defLoc
-                                            if (defLoc != null) loadRateDetails(selectedDistrict!, selectedTehsil!, selectedSubArea!, v, defLoc, supabase)
-                                        }
+                                    val dist = selectedDistrict
+                                    val teh = selectedTehsil
+                                    val sub = selectedSubArea
+                                    if (dist != null && teh != null && sub != null) {
+                                        fetchLocations(dist, teh, sub, v)
                                     }
                                 }
                             }
 
-                            // 5. Location Tile
-                            SelectionTile("5", "कॉलोनी / गाँव", selectedLocation, isEnabled = selectedWard != null && locations.isNotEmpty) {
+                            SelectionTile("5", "कॉलोनी / गाँव", selectedLocation, isEnabled = selectedWard != null && locations.isNotEmpty()) {
                                 activeSheetTitle = "कॉलोनी / गाँव चुनें"
                                 activeSheetItems = locations
                                 onItemSelected = { v ->
                                     selectedLocation = v
-                                    if (selectedDistrict != null && selectedTehsil != null && selectedSubArea != null && selectedWard != null) {
-                                        loadRateDetails(selectedDistrict!, selectedTehsil!, selectedSubArea!, selectedWard!, v, supabase)
+                                    val dist = selectedDistrict
+                                    val teh = selectedTehsil
+                                    val sub = selectedSubArea
+                                    val ward = selectedWard
+                                    if (dist != null && teh != null && sub != null && ward != null) {
+                                        fetchRates(dist, teh, sub, ward, v)
                                     }
                                 }
                             }
@@ -395,10 +311,9 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                 }
             }
 
-            // Selection Bottom Sheet Dialog with Search
             if (activeSheetTitle != null) {
                 SelectionBottomSheet(
-                    title = activeSheetTitle!,
+                    title = activeSheetTitle!!,
                     items = activeSheetItems,
                     onDismiss = { activeSheetTitle = null },
                     onSelect = { item ->
@@ -427,10 +342,7 @@ fun SelectionTile(step: String, label: String, value: String?, isEnabled: Boolea
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(if (isEnabled) Color(0xFF1E3A8A) else Color.Gray),
+                modifier = Modifier.size(24.dp).clip(CircleShape).background(if (isEnabled) Color(0xFF1E3A8A) else Color.Gray),
                 contentAlignment = Alignment.Center
             ) {
                 Text(step, color = Color.White, fontSize = 11.sp)
@@ -517,7 +429,7 @@ fun RateDetailsCard(d: JsonObject) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(locName, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A)))
-            Divider(modifier = Modifier.padding(vertical = 10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             RateSection("1. भूखण्ड दरें (Plot Rates ₹/वर्ग मी.)", listOf(
                 Pair("आवासीय भूखण्ड", d["plot_residential"]?.jsonPrimitive?.content),
