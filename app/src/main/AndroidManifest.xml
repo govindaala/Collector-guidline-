@@ -10,6 +10,11 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-1190693135801072~3753816204"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
