@@ -34,7 +34,6 @@ import com.google.android.gms.ads.MobileAds
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -97,8 +96,10 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchTehsils(district: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.postgrest.rpc("get_tehsils", mapOf("p_district" to district)).decodeList<JsonObject>()
-                val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.from("guidelines").select {
+                    filter { eq("district", district) }
+                }.decodeList<JsonObject>()
+                val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     tehsils = list
                     selectedTehsil = list.firstOrNull()
@@ -113,8 +114,13 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchSubAreas(district: String, tehsil: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.postgrest.rpc("get_sub_areas", mapOf("p_district" to district, "p_tehsil" to tehsil)).decodeList<JsonObject>()
-                val list = res.mapNotNull { it["sub_area"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.from("guidelines").select {
+                    filter {
+                        eq("district", district)
+                        eq("tehsil", tehsil)
+                    }
+                }.decodeList<JsonObject>()
+                val list = res.mapNotNull { it["sub_area"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     subAreas = list
                     selectedSubArea = list.firstOrNull()
@@ -129,8 +135,14 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchWards(district: String, tehsil: String, subArea: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.postgrest.rpc("get_wards", mapOf("p_district" to district, "p_tehsil" to tehsil, "p_sub_area" to subArea)).decodeList<JsonObject>()
-                val list = res.mapNotNull { it["ward_halka"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.from("guidelines").select {
+                    filter {
+                        eq("district", district)
+                        eq("tehsil", tehsil)
+                        eq("sub_area", subArea)
+                    }
+                }.decodeList<JsonObject>()
+                val list = res.mapNotNull { it["ward_halka"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     wards = list
                     selectedWard = list.firstOrNull()
@@ -145,8 +157,15 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchLocations(district: String, tehsil: String, subArea: String, ward: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.postgrest.rpc("get_locations", mapOf("p_district" to district, "p_tehsil" to tehsil, "p_sub_area" to subArea, "p_ward" to ward)).decodeList<JsonObject>()
-                val list = res.mapNotNull { it["location_name"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.from("guidelines").select {
+                    filter {
+                        eq("district", district)
+                        eq("tehsil", tehsil)
+                        eq("sub_area", subArea)
+                        eq("ward_halka", ward)
+                    }
+                }.decodeList<JsonObject>()
+                val list = res.mapNotNull { it["location_name"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     locations = list
                     selectedLocation = list.firstOrNull()
@@ -162,7 +181,7 @@ fun HomeScreen(supabase: SupabaseClient) {
         isLoading = true
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.postgrest.from("guidelines")
+                val res = supabase.from("guidelines")
                     .select {
                         filter {
                             eq("district", district)
@@ -187,8 +206,8 @@ fun HomeScreen(supabase: SupabaseClient) {
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.postgrest.rpc("get_districts").decodeList<JsonObject>()
-                val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }
+                val res = supabase.from("guidelines").select().decodeList<JsonObject>()
+                val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     districts = list
                     val d = if (list.contains("मंदसौर")) "मंदसौर" else list.firstOrNull()
@@ -211,7 +230,6 @@ fun HomeScreen(supabase: SupabaseClient) {
             )
         },
         bottomBar = {
-            // Google AdMob Banner View Integration
             AndroidView(
                 modifier = Modifier.fillMaxWidth(),
                 factory = { context ->
@@ -451,49 +469,4 @@ fun RateDetailsCard(d: JsonObject) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(locName, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A)))
-            Spacer(modifier = Modifier.height(10.dp))
-
-            RateSection("1. भूखण्ड दरें (Plot Rates ₹/वर्ग मी.)", listOf(
-                Pair("आवासीय भूखण्ड", d["plot_residential"]?.jsonPrimitive?.content),
-                Pair("व्यावसायिक भूखण्ड", d["plot_commercial"]?.jsonPrimitive?.content),
-                Pair("औद्योगिक भूखण्ड", d["plot_industrial"]?.jsonPrimitive?.content)
-            ))
-
-            RateSection("2. आवासीय निर्माण (₹/वर्ग मी.)", listOf(
-                Pair("RCC निर्माण", d["rcc_residential"]?.jsonPrimitive?.content),
-                Pair("पक्का निर्माण", d["pucca_residential"]?.jsonPrimitive?.content),
-                Pair("अर्ध-पक्का निर्माण", d["semi_pucca_residential"]?.jsonPrimitive?.content),
-                Pair("कच्चा / टीन शेड", d["kachha_residential"]?.jsonPrimitive?.content)
-            ))
-
-            RateSection("3. दुकान / व्यावसायिक (₹/वर्ग मी.)", listOf(
-                Pair("दुकान (RCC)", d["shop_rcc"]?.jsonPrimitive?.content),
-                Pair("दुकान (पक्का)", d["shop_pucca"]?.jsonPrimitive?.content),
-                Pair("दुकान (अर्ध-पक्का)", d["shop_semi_pucca"]?.jsonPrimitive?.content)
-            ))
-
-            RateSection("4. कृषि भूमि (₹/हेक्टेयर)", listOf(
-                Pair("🌾 सिंचित भूमि", d["agri_irrigated"]?.jsonPrimitive?.content),
-                Pair("🍂 असिंचित भूमि", d["agri_unirrigated"]?.jsonPrimitive?.content)
-            ))
-        }
-    }
-}
-
-@Composable
-fun RateSection(title: String, rates: List<Pair<String, String?>>) {
-    Column(modifier = Modifier.padding(vertical = 6.dp)) {
-        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A))
-        Spacer(modifier = Modifier.height(4.dp))
-        rates.forEach { (label, value) ->
-            val displayVal = if (value.isNullOrEmpty() || value == "null" || value == "None") "-" else "₹ $value"
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(label, fontSize = 12.5.sp, color = Color(0xFF475569))
-                Text(displayVal, fontSize = 13.sp, fontWeight = FontWeight.W600, color = Color(0xFF0F172A))
-            }
-        }
-    }
-}
+            Spacer(m
