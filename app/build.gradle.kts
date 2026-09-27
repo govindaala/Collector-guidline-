@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -51,4 +52,9 @@ dependencies {
     
     // Google AdMob SDK
     implementation("com.google.android.gms:play-services-ads:22.6.0")
+
+    // Supabase & Ktor & Serialization Dependencies
+    implementation("io.ktor:ktor-client-android:2.3.7")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.0.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }
