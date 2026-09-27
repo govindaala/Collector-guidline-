@@ -82,7 +82,8 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                     districts = list
                     isLoading = false
                     if (districts.isNotEmpty()) {
-                        selectedDistrict = districts.contains("मंदसौर") ? "मंदसौर" : districts.first()
+                        // Fixed Kotlin if-else syntax instead of ternary operator
+                        selectedDistrict = if (districts.contains("मंदसौर")) "मंदसौर" else districts.first()
                     }
                 }
             } catch (e: Exception) {
