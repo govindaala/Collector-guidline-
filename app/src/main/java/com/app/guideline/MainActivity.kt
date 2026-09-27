@@ -26,6 +26,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
@@ -204,6 +208,19 @@ fun HomeScreen(supabase: SupabaseClient) {
             TopAppBar(
                 title = { Text("कलेक्टर गाइडलाइन 2026-27", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E3A8A))
+            )
+        },
+        bottomBar = {
+            // Google AdMob Banner View Integration
+            AndroidView(
+                modifier = Modifier.fillMaxWidth(),
+                factory = { context ->
+                    AdView(context).apply {
+                        setAdSize(AdSize.BANNER)
+                        adUnitId = "ca-app-pub-1190693135801072/8507449433"
+                        loadAd(AdRequest.Builder().build())
+                    }
+                }
             )
         }
     ) { paddingValues ->
