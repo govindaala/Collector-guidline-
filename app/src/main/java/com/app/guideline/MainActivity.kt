@@ -27,16 +27,13 @@ import androidx.compose.ui.unit.sp
 import com.google.android.gms.ads.MobileAds
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 class MainActivity : ComponentActivity() {
 
-    // Supabase Client Initialization
     val supabase = createSupabaseClient(
         supabaseUrl = "https://dcbtdftgjyokioqcpumv.supabase.co",
         supabaseKey = "sb_publishable_u6nxcL145Z-HsaKiOlfjoQ_DCvKJrGO"
@@ -73,13 +70,13 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    // Load Districts on Startup from Supabase
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val result = supabase.postgrest.rpc("get_districts").decodeList<JsonObject>()
-                val list = result.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }
+                val result = supabase.from("guidelines").select().decodeList<Map<String, Any>>()
+                val list = result.mapNotNull { it["district"]?.toString()?.trim() }
                     .filter { it.isNotEmpty() }
+                    .distinct()
                 
                 withContext(Dispatchers.Main) {
                     districts = list
@@ -123,7 +120,7 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                 ) {
                     Text("डेटा लोड करने में त्रुटि:", color = Color.Red, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(errorMessage!, color = Color.Gray, fontSize = 12.sp)
+                    Text(errorMessage!!, color = Color.Gray, fontSize = 12.sp)
                 }
             } else {
                 LazyColumn(
@@ -190,7 +187,10 @@ fun SelectionTile(step: String, label: String, value: String?, isEnabled: Boolea
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(24.dp).clip(CircleShape).background(if (isEnabled) Color(0xFF1E3A8A) else Color.Gray),
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isEnabled) Color(0xFF1E3A8A) else Color.Gray),
                 contentAlignment = Alignment.Center
             ) {
                 Text(step, color = Color.White, fontSize = 11.sp)
