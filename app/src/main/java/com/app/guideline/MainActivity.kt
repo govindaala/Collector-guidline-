@@ -92,7 +92,7 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchTehsils(district: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select("tehsil") {
+                val res = supabase.from("guidelines").select {
                     filter { eq("district", district) }
                 }.decodeList<JsonObject>()
                 val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
@@ -109,7 +109,7 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchSubAreas(district: String, tehsil: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select("sub_area") {
+                val res = supabase.from("guidelines").select {
                     filter {
                         eq("district", district)
                         eq("tehsil", tehsil)
@@ -129,7 +129,7 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchWards(district: String, tehsil: String, subArea: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select("ward_halka") {
+                val res = supabase.from("guidelines").select {
                     filter {
                         eq("district", district)
                         eq("tehsil", tehsil)
@@ -150,7 +150,7 @@ fun HomeScreen(supabase: SupabaseClient) {
     fun fetchLocations(district: String, tehsil: String, subArea: String, ward: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select("location_name") {
+                val res = supabase.from("guidelines").select {
                     filter {
                         eq("district", district)
                         eq("tehsil", tehsil)
@@ -198,7 +198,7 @@ fun HomeScreen(supabase: SupabaseClient) {
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select("district").decodeList<JsonObject>()
+                val res = supabase.from("guidelines").select().decodeList<JsonObject>()
                 val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     districts = list
