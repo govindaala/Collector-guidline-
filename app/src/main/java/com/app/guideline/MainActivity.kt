@@ -123,6 +123,7 @@ fun HomeScreen(supabase: SupabaseClient) {
         scope.launch(Dispatchers.IO) {
             try {
                 val res = supabase.from("guidelines").select {
+                    range(0, 9999)
                     filter {
                         eq("district", district)
                         eq("tehsil", tehsil)
@@ -146,6 +147,7 @@ fun HomeScreen(supabase: SupabaseClient) {
         scope.launch(Dispatchers.IO) {
             try {
                 val res = supabase.from("guidelines").select {
+                    range(0, 9999)
                     filter {
                         eq("district", district)
                         eq("tehsil", tehsil)
@@ -168,6 +170,7 @@ fun HomeScreen(supabase: SupabaseClient) {
         scope.launch(Dispatchers.IO) {
             try {
                 val res = supabase.from("guidelines").select {
+                    range(0, 9999)
                     filter {
                         eq("district", district)
                         eq("tehsil", tehsil)
@@ -189,6 +192,7 @@ fun HomeScreen(supabase: SupabaseClient) {
         scope.launch(Dispatchers.IO) {
             try {
                 val res = supabase.from("guidelines").select {
+                    range(0, 9999)
                     filter { eq("district", district) }
                 }.decodeList<JsonObject>()
                 val list = res.mapNotNull { it["tehsil"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
@@ -206,7 +210,9 @@ fun HomeScreen(supabase: SupabaseClient) {
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val res = supabase.from("guidelines").select().decodeList<JsonObject>()
+                val res = supabase.from("guidelines").select {
+                    range(0, 9999)
+                }.decodeList<JsonObject>()
                 val list = res.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }.filter { it.isNotEmpty() }.distinct()
                 withContext(Dispatchers.Main) {
                     districts = list
@@ -471,6 +477,7 @@ fun RateDetailsCard(d: JsonObject) {
             Text(locName, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A)))
             Spacer(modifier = Modifier.height(10.dp))
 
+            // All 16 columns/fields coverage
             RateSection("1. भूखण्ड दरें (Plot Rates ₹/वर्ग मी.)", listOf(
                 Pair("आवासीय भूखण्ड", d["plot_residential"]?.jsonPrimitive?.content),
                 Pair("व्यावसायिक भूखण्ड", d["plot_commercial"]?.jsonPrimitive?.content),
@@ -484,15 +491,18 @@ fun RateDetailsCard(d: JsonObject) {
                 Pair("कच्चा / टीन शेड", d["kachha_residential"]?.jsonPrimitive?.content)
             ))
 
-            RateSection("3. दुकान / व्यावसायिक (₹/वर्ग मी.)", listOf(
+            RateSection("3. दुकान / व्यावसायिक निर्माण (₹/वर्ग मी.)", listOf(
                 Pair("दुकान (RCC)", d["shop_rcc"]?.jsonPrimitive?.content),
                 Pair("दुकान (पक्का)", d["shop_pucca"]?.jsonPrimitive?.content),
-                Pair("दुकान (अर्ध-पक्का)", d["shop_semi_pucca"]?.jsonPrimitive?.content)
+                Pair("दुकान (अर्ध-पक्का)", d["shop_semi_pucca"]?.jsonPrimitive?.content),
+                Pair("व्यावसायिक अन्य निर्माण", d["commercial_construction"]?.jsonPrimitive?.content)
             ))
 
-            RateSection("4. कृषि भूमि (₹/हेक्टेयर)", listOf(
+            RateSection("4. कृषि भूमि व अन्य दरें (₹/हेक्टेयर / वर्ग मी.)", listOf(
                 Pair("🌾 सिंचित भूमि", d["agri_irrigated"]?.jsonPrimitive?.content),
-                Pair("🍂 असिंचित भूमि", d["agri_unirrigated"]?.jsonPrimitive?.content)
+                Pair("🍂 असिंचित भूमि", d["agri_unirrigated"]?.jsonPrimitive?.content),
+                Pair("अन्य उपयोग दर 1", d["other_rate_1"]?.jsonPrimitive?.content),
+                Pair("अन्य उपयोग दर 2", d["other_rate_2"]?.jsonPrimitive?.content)
             ))
         }
     }
