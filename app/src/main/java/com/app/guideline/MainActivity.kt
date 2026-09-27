@@ -31,6 +31,8 @@ import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class MainActivity : ComponentActivity() {
 
@@ -73,8 +75,9 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val result = supabase.from("guidelines").select().decodeList<Map<String, Any>>()
-                val list = result.mapNotNull { it["district"]?.toString()?.trim() }
+                // Fixed using JsonObject instead of Map<String, Any>
+                val result = supabase.from("guidelines").select().decodeList<JsonObject>()
+                val list = result.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }
                     .filter { it.isNotEmpty() }
                     .distinct()
                 
@@ -196,7 +199,6 @@ fun SelectionTile(step: String, label: String, value: String?, isEnabled: Boolea
                 Text(step, color = Color.White, fontSize = 11.sp)
             }
             Spacer(modifier = Modifier.width(12.dp))
-            // Fixed weight issue here (using 1f instead of 1.dp)
             Column(modifier = Modifier.weight(1f)) {
                 Text(label, fontSize = 11.sp, color = Color(0xFF64748B))
                 Text(value ?: "चुनें...", fontSize = 14.sp, fontWeight = if (value != null) FontWeight.Bold else FontWeight.Normal, color = if (value != null) Color(0xFF0F172A) else Color.Gray)
