@@ -82,7 +82,6 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                     districts = list
                     isLoading = false
                     if (districts.isNotEmpty()) {
-                        // Fixed Kotlin if-else syntax instead of ternary operator
                         selectedDistrict = if (districts.contains("मंदसौर")) "मंदसौर" else districts.first()
                     }
                 }
@@ -197,7 +196,8 @@ fun SelectionTile(step: String, label: String, value: String?, isEnabled: Boolea
                 Text(step, color = Color.White, fontSize = 11.sp)
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1.dp)) {
+            // Fixed weight issue here (using 1f instead of 1.dp)
+            Column(modifier = Modifier.weight(1f)) {
                 Text(label, fontSize = 11.sp, color = Color(0xFF64748B))
                 Text(value ?: "चुनें...", fontSize = 14.sp, fontWeight = if (value != null) FontWeight.Bold else FontWeight.Normal, color = if (value != null) Color(0xFF0F172A) else Color.Gray)
             }
