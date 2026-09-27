@@ -3,45 +3,17 @@ package com.app.guideline
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.ads.MobileAds
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.postgrest
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 class MainActivity : ComponentActivity() {
-
-    // Supabase Client Initialization
-    val supabase = createSupabaseClient(
-        supabaseUrl = "https://dcbtdftgjyokioqcpumv.supabase.co",
-        supabaseKey = "sb_publishable_u6nxcL145Z-HsaKiOlfjoQ_DCvKJrGO"
-    ) {
-        install(Postgrest)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -54,9 +26,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color(0xFFF1F5F9)
+                color = MaterialTheme.colorScheme.background
             ) {
-                HomeScreen(supabase)
+                MainScreen()
             }
         }
     }
@@ -64,44 +36,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
-    var selectedDistrict by remember { mutableStateOf<String?>(null) }
-    var selectedTehsil by remember { mutableStateOf<String?>(null) }
-    var selectedSubArea by remember { mutableStateOf<String?>(null) }
-    var selectedWard by remember { mutableStateOf<String?>(null) }
-    var selectedLocation by remember { mutableStateOf<String?>(null) }
-
-    var districts by remember { mutableStateOf<List<String>>(emptyList()) }
-    var tehsils by remember { mutableStateOf<List<String>>(emptyList()) }
-    var subAreas by remember { mutableStateOf<List<String>>(emptyList()) }
-    var wards by remember { mutableStateOf<List<String>>(emptyList()) }
-    var locations by remember { mutableStateOf<List<String>>(emptyList()) }
-
-    var isLoading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
-
-    // Load Districts on Startup from Supabase
-    LaunchedEffect(Unit) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val result = supabase.postgrest.rpc("get_districts").decodeList<JsonObject>()
-                val list = result.mapNotNull { it["district"]?.jsonPrimitive?.content?.trim() }
-                    .filter { it.isNotEmpty() }
-                
-                withContext(Dispatchers.Main) {
-                    districts = list
-                    isLoading = false
-                    if (districts.isNotEmpty()) {
-                        selectedDistrict = districts.contains("मंदसौर") ? "मंदसौर" : districts.first()
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) { isLoading = false }
-            }
-        }
-    }
-
+fun MainScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -109,74 +44,36 @@ fun HomeScreen(supabase: io.github.jan.supabase.SupabaseClient) {
                     Text(
                         "कलेक्टर गाइडलाइन 2026-27", 
                         color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 17.sp
                     ) 
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E3A8A))
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            if (isLoading && districts.isEmpty()) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("📍 स्थान चुनें", style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A)))
-                                Spacer(modifier = Modifier.height(12.dp))
-                                
-                                SelectionTile("1", "ज़िला", selectedDistrict) {}
-                                SelectionTile("2", "तहसील", selectedTehsil, isEnabled = selectedDistrict != null) {}
-                                SelectionTile("3", "निकाय / उप-क्षेत्र", selectedSubArea, isEnabled = selectedTehsil != null) {}
-                                SelectionTile("4", "वार्ड / हल्का", selectedWard, isEnabled = selectedSubArea != null) {}
-                                SelectionTile("5", "कॉलोनी / गाँव", selectedLocation, isEnabled = selectedWard != null) {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SelectionTile(step: String, label: String, value: String?, isEnabled: Boolean = true, onClick: () -> Unit = {}) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isEnabled) Color(0xFFF8FAFC) else Color(0xFFF1F5F9))
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-            .clickable(enabled = isEnabled, onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.size(24.dp).clip(CircleShape).background(if (isEnabled) Color(0xFF1E3A8A) else Color.Gray),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(16.dp)
             ) {
-                Text(step, color = Color.White, fontSize = 11.sp)
+                Text(
+                    text = "🏛️ MP Collector Guideline",
+                    fontSize = 22.sp,
+                    color = Color(0xFF1E3A8A),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "ऐप पूरी तरह सुरक्षित और सुचारू रूप से चल रहा है!",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1.dp)) {
-                Text(label, fontSize = 11.sp, color = Color(0xFF64748B))
-                Text(value ?: "चुनें...", fontSize = 14.sp, fontWeight = if (value != null) FontWeight.Bold else FontWeight.Normal, color = if (value != null) Color(0xFF0F172A) else Color.Gray)
-            }
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = if (isEnabled) Color(0xFF1E3A8A) else Color.Gray)
         }
     }
 }
